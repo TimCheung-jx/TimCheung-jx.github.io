@@ -259,44 +259,59 @@ async function savePoem(e) {
     poems.unshift(poem);
   }
 
-  saveToServer();
+  await saveToServer();
   resetForm();
   renderPoemList();
   updateCount();
-  showToast(editIndex >= 0 ? '诗歌已更新' : '新诗已发布 ✨');
 }
 
 function saveToServer() {
   localStorage.setItem('poetry-drafts', JSON.stringify(poems));
-  pushToGitHub();
+  return pushToGitHub();
 }
 
 async function pushToGitHub() {
   const owner = localStorage.getItem('gh-owner');
   const repo = localStorage.getItem('gh-repo');
   const token = localStorage.getItem('gh-token');
-  if (!owner || !repo || !token) return;
+  if (!owner || !repo || !token) {
+    showToast('⚠️ GitHub 未配置，诗歌仅保存在本地');
+    return;
+  }
 
   try {
     // 1. Get current file SHA
     const metaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/poems.json`, {
       headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
     });
-    if (!metaRes.ok) throw new Error('Failed to get file info');
+    if (!metaRes.ok) {
+      const err = await metaRes.json().catch(() => ({}));
+      throw new Error(err.message || `获取文件信息失败 (${metaRes.status})`);
+    }
     const meta = await metaRes.json();
 
     // 2. Update file
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(poems, null, 2))));
+    const content = base64Encode(JSON.stringify(poems, null, 2));
     const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/poems.json`, {
       method: 'PUT',
       headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: 'Update poems via admin', content: content, sha: meta.sha })
     });
-    if (!updateRes.ok) throw new Error('Failed to update file');
-    showToast('已同步到网站 ✨');
+    if (!updateRes.ok) {
+      const err = await updateRes.json().catch(() => ({}));
+      throw new Error(err.message || `更新文件失败 (${updateRes.status})`);
+    }
+    showToast('✅ 已同步到网站，约 1-2 分钟后刷新可见');
   } catch (e) {
-    showToast('同步失败：' + e.message);
+    showToast('❌ 同步失败：' + e.message);
+    console.error('GitHub sync error:', e);
   }
+}
+
+function base64Encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  const bin = String.fromCharCode(...bytes);
+  return btoa(bin);
 }
 
 function deletePoem(index) {
@@ -446,3 +461,4 @@ function showToast(msg) {
 </script>
 </body>
 </html>
+

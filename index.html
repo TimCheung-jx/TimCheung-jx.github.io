@@ -198,9 +198,9 @@ body{
 .poem-card-hint{
   position:absolute;bottom:clamp(28px,3vw,40px);right:clamp(28px,3vw,40px);
   font-family:'Caveat',cursive;font-size:0.8rem;color:var(--orange);
-  opacity:0;transition:opacity 0.3s;pointer-events:none;
+  opacity:0.55;transition:opacity 0.3s;pointer-events:none;
 }
-.poem-card:hover .poem-card-hint{opacity:0.55}
+.poem-card:hover .poem-card-hint{opacity:0.9}
 .poem-card.expanded .poem-card-hint{opacity:0}
 
 .poem-card-collapse{
@@ -343,12 +343,24 @@ function renderPoems(){
   }).join('');
 
   // Card click: expand / collapse
+  function clearInlineMaxHeightWhenStable(el){
+    function onTransitionEnd(e){
+      if(e && e.propertyName !== 'max-height') return;
+      el.style.maxHeight='';
+      el.removeEventListener('transitionend',onTransitionEnd);
+    }
+    el.addEventListener('transitionend',onTransitionEnd);
+    // Fallback in case transition doesn't fire
+    setTimeout(()=>{ el.style.maxHeight=''; },600);
+  }
+
   grid.querySelectorAll('.poem-card').forEach(card=>{
     card.addEventListener('click',function(e){
       if(e.target.closest('.poem-close-btn')) return;
       if(card.classList.contains('expanded')){
         // Collapse: lock current height, then shrink
         card.style.maxHeight=card.scrollHeight+'px';
+        clearInlineMaxHeightWhenStable(card);
         requestAnimationFrame(()=>{
           card.classList.remove('expanded');
           card.style.maxHeight='420px';
@@ -358,23 +370,27 @@ function renderPoems(){
         // Collapse any others
         grid.querySelectorAll('.poem-card.expanded').forEach(c=>{
           c.style.maxHeight=c.scrollHeight+'px';
+          clearInlineMaxHeightWhenStable(c);
           requestAnimationFrame(()=>{
             c.classList.remove('expanded');
             c.style.maxHeight='420px';
           });
         });
-        // Expand: measure and grow
+        // Expand: measure and grow; clear inline max-height after transition
         card.classList.add('expanded');
         card.style.maxHeight=card.scrollHeight+'px';
+        clearInlineMaxHeightWhenStable(card);
         setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
       }
     });
+
     // Collapse button
     const closeBtn=card.querySelector('.poem-close-btn');
     if(closeBtn){
       closeBtn.addEventListener('click',function(e){
         e.stopPropagation();
         card.style.maxHeight=card.scrollHeight+'px';
+        clearInlineMaxHeightWhenStable(card);
         requestAnimationFrame(()=>{
           card.classList.remove('expanded');
           card.style.maxHeight='420px';

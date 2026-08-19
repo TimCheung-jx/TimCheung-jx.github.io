@@ -188,7 +188,10 @@ body{
   transition:font-size 0.4s,line-height 0.4s;
 }
 .poem-card.expanded .poem-card-text{
-  display:block;-webkit-line-clamp:unset;
+  display:block;
+  -webkit-line-clamp:unset;
+  -webkit-line-clamp:none;
+  -webkit-box-orient:unset;
   font-size:clamp(1.05rem,2vw,1.2rem);
   line-height:2.3;
   overflow:visible;
